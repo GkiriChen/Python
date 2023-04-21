@@ -9,18 +9,18 @@ def search(path):
     list_dir_ = ['video', 'audio', 'documents', 'images', 'archives'] #перелік папок для работи скрипта (сервісні папки)
     list_dir = [path]
     all_dir = os.walk(path)
-    for i in all_dir: #перебор папок
-        #print(i)            
+    for i in all_dir: #перебор папок           
+        
         if i[0] == str(path):
             list_name_file = i[2]
             if list_name_file != []:
-                for f in list_name_file:                
-                    move_file(fr'{path}/{f}', path) #виклик функції перенесення файлів        
-        else:
-            
-            name_dir = i[0] #назва вкладеної папки
-            one_dir = str(name_dir.split(path)[1]).split('/')[1] 
-            
+                for f in list_name_file:  
+                    file= os.path.join(path, f)             
+                    move_file(file, path) #виклик функції перенесення файлів                      
+        else:            
+            name_dir = i[0] #путь назва вкладеної папки
+            one_dir = os.path.basename(name_dir) # назва вкладеної папики
+
             if one_dir in list_dir_: # перевірка чи папка є сервісною для роботи
                 pass
             else: # якщо ні то обробляємо
@@ -29,9 +29,13 @@ def search(path):
                 list_name_file = i[2]
                 #print('додаємо папку до переліку',name_dir)
                 list_dir.append(path + normalize(name_dir.split(path)[1]))    
+                #print(list_dir)
                 if list_name_file != []:
-                    for f in list_name_file:                
-                        move_file(fr'{name_dir}/{f}', path) #виклик функції перенесення файлів         
+                    for f in list_name_file:   
+                        file= os.path.join(name_dir, f)             
+                        move_file(file, path) #виклик функції перенесення файлів         
+                        ##move_file(fr'{name_dir}/{f}', path) #виклик функції перенесення файлів   
+    print('list_dir search', list_dir)      
     return path, list_dir
 
 #переміщення файлів до папок та перевод назви файлу у латиницю
@@ -51,37 +55,42 @@ def move_file(path_file, path):
     file = normalize(file.split('.')[0]) + str(Path(path_file).suffix) #переіменування файла у латиницю
 
     #фільтруваня файла по групах
-    if suffix_file in dict_dir['video']:
-        #print('video', fr'{path_file}')        
-        os.rename(path_file, fr'{path}/video/{file}')
-    elif suffix_file in dict_dir['images']:
-        #print('images', fr'{path_file}')
-        os.rename(path_file, fr'{path}/images/{file}')
-    elif suffix_file in dict_dir['audio']:
-        #print('audio', fr'{path_file}')
-        os.rename(path_file, fr'{path}/audio/{file}')
-    elif suffix_file in dict_dir['documents']:
-        #print('documents', fr'{path_file}')
-        os.rename(path_file, fr'{path}/documents/{file}')
-    elif suffix_file in dict_dir['archives']:
-        #print('archives', fr'{path_file}')
-        file = file.split('.')[0]
-        shutil.unpack_archive(path_file, fr'{path}/archives/{file}')
-        os.remove(path_file)    
-    else:
-        print('Невідомий файл -->', fr'{path_file}')        
+
+    for suffile in dict_dir.keys():
+        
+        if suffix_file in dict_dir[suffile]:
+            
+            if suffile != 'archives':
+                folder = os.path.join(path, suffile, file)
+                #print('test FOR ', folder)
+                os.rename(path_file, folder)
+            elif suffile == 'archives':
+                file = file.split('.')[0]
+                folder = os.path.join(path,'archives', file)
+                shutil.unpack_archive(path_file, folder)                
+                os.remove(path_file)    
+            else:
+                print('Невідомий файл -->', fr'{path_file}') 
+        
 
 #Перевірка наявності папок для работи скрипта у вибраній дерікторії
 def folder_project(path):
     list_dir_work = os.listdir(path) #отимання переліку папок та файлів у вибраній папці
     list_dir_ = ['video', 'audio', 'documents', 'images', 'archives'] #перелік папок для работи скрипта(сервісні папки)
+    
     for i in list_dir_work: #перебираємо отриманий перелік
-        if os.path.isdir(fr'{path}/{i}'): #перевіряємо чи то є папка 
+        folder = os.path.join(path, i)
+        
+        if os.path.isdir(folder): #перевіряємо чи то є папка 
+            
             if i in list_dir_: #якщо так, то дивимось чи є ця папка в нашому робочому переліку
                 #print(fr'this folder {i} exists')
                 list_dir_.remove(i) #видаляємо існуючу папку з переліку папок для работи скрипта
+    
     for d in list_dir_: #перебираєме перелік папок для работи скрипта щоб створити не існуючи папки 
-        os.mkdir(fr'{path}/{d}') #створюємо папку
+        folder = os.path.join(path, d)
+        os.mkdir(folder)
+        #os.mkdir(fr'{path}/{d}') #створюємо папку
     print('перевірив')
                 
 #Функція переводу з кирилиці у латиницю назв
@@ -100,14 +109,21 @@ def normalize(name):
 
 # Видалення пустих папок
 def del_empty_dir(list_dir=[]):
-    list_dir_ = ['video', 'audio', 'documents', 'images', 'archives'] #перелік папок для работи скрипта(сервісні папки)    
+    #print(list_dir)
+    list_dir_ = ['video', 'audio', 'documents', 'images', 'archives'] #перелік папок для работи скрипта(сервісні папки)        
+   
+    if int(list_dir[0].find('/')) >= 0:
+        delimiter = '/'
+    else:
+        delimiter = '\\'
+    print('delimiter', delimiter)
 
-    for dir in sorted(list_dir, key=lambda x: len(x.split('/')), reverse=True):
+    for dir in sorted(list_dir, key=lambda x: len(x.split(delimiter)), reverse=True):    
         
         if dir in list_dir_: # перевірка чи входить папка у перелік сервісних папок
             pass
-        else: 
-            if os.listdir(dir) :
+        else:    
+            if os.listdir(dir) :                
                 #print(os.listdir(dir), dir)
                 if os.listdir(dir) == ['.DS_Store']:
                     #print('пустая + DS_Store', dir)
@@ -119,6 +135,7 @@ def del_empty_dir(list_dir=[]):
 def main():
 
     try :        
+        print(os.name)
         folder_project(sys.argv[1])
         #search(sys.argv[1])
         del_empty_dir(search(sys.argv[1])[1])    
